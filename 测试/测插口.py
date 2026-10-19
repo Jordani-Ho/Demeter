@@ -186,6 +186,61 @@ class TestChakou(unittest.TestCase):
         self.assertEqual(len(dropped), 1)
         self.assertIn("餐", dropped[0][1])
 
+    def test_teacher_must_match_skill_name(self):
+        """teacher 和说明书的 name 对不上：这次回复整个不要。"""
+        passed, dropped = 插口.ask(load_fake("冒名的"), CANSHU, None)
+
+        self.assertEqual(passed, [])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("teacher", dropped[0][1])
+
+    def test_dish_kind_is_checked(self):
+        """菜的 kind 只能是汤、菜、主食、粥、点心。"""
+        passed, dropped = 插口.ask(load_fake("kind不对"), CANSHU, None)
+
+        self.assertEqual([plan["plan_id"] for plan in passed], ["A", "C"])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("kind", dropped[0][1])
+
+    def test_sources_must_be_in_bencao(self):
+        """菜和饮的 sources 里每个 id 都要在本草库里。"""
+        passed, dropped = 插口.ask(load_fake("出处不对"), CANSHU, None)
+
+        self.assertEqual([plan["plan_id"] for plan in passed], ["A", "C"])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("sources", dropped[0][1])
+
+    def test_plan_id_must_be_unique(self):
+        """一次回复里 plan_id 不能重复。"""
+        passed, dropped = 插口.ask(load_fake("重名方案"), CANSHU, None)
+
+        self.assertEqual(passed, [])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("plan_id", dropped[0][1])
+
+    def test_banned_word_in_steps(self):
+        """禁词写在 steps 里也要被查出来。"""
+        passed, dropped = 插口.ask(load_fake("禁词在步骤"), CANSHU, None)
+
+        self.assertEqual([plan["plan_id"] for plan in passed], ["B", "C"])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("禁词", dropped[0][1])
+
+    def test_banned_word_only_in_visible_fields(self):
+        """禁词只查 idea、name、steps、why、when，别的字段不扫。"""
+        passed, dropped = 插口.ask(load_fake("禁词在料名"), CANSHU, None)
+
+        self.assertEqual(len(passed), 3)
+        self.assertEqual(dropped, [])
+
+    def test_too_many_plans_rejected(self):
+        """多于三个方案，这次回复整个不要。"""
+        passed, dropped = 插口.ask(load_fake("多给一个"), CANSHU, None)
+
+        self.assertEqual(passed, [])
+        self.assertEqual(len(dropped), 1)
+        self.assertIn("两三个", dropped[0][1])
+
     def test_skill_json_fields_are_checked(self):
         """说明书不合格的四种情况都报错，说清哪里不对。"""
         cases = {

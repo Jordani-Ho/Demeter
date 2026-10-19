@@ -1,0 +1,9 @@
+{
+  "name": "kind不对",
+  "kind": "厨神",
+  "author": "测试",
+  "entry": "main.py",
+  "reads": ["参数单"],
+  "writes": ["方案"],
+  "knowledge": ["本草库"]
+}
