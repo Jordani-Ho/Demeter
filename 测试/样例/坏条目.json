@@ -1,0 +1,17 @@
+{
+  "id": "坏条目",
+  "name": "故意写错的样例",
+  "kind": "方",
+  "nature": "微寒",
+  "flavor": "甘",
+  "meridian": [],
+  "effects": ["随便写的功效"],
+  "good_for": [],
+  "avoid_for": [],
+  "methods": ["烤", "泡"],
+  "season": [],
+  "ingredients": [
+    { "item": "buCunZaiDeTiaoMu", "qty": 5, "unit": "g" }
+  ],
+  "sources": []
+}
