@@ -177,6 +177,22 @@ def _apply_one(data, change, allowed_constitution, allowed_items):
             if not isinstance(birth_year, int) or isinstance(birth_year, bool):
                 return "birth_year 要是整数"
             person["birth_year"] = birth_year
+        # 大模型常把体质、口味、忌口直接放进 add_person，一起收下
+        for field in ("constitution", "taste", "avoid"):
+            if field not in change:
+                continue
+            value = change[field]
+            if field == "constitution":
+                if not _is_string_list(value):
+                    return "add_person 的 constitution 要是字符串数组"
+                strange = [word for word in value if word not in allowed_constitution]
+                if strange:
+                    return "这些词不在词表的体质或偏向里：{}".format(
+                        "、".join(strange)
+                    )
+            elif not _is_string_list(value):
+                return "add_person 的 {} 要是字符串数组".format(field)
+            person[field] = value
         data["people"].append(person)
         return None
 

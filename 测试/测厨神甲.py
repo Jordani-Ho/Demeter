@@ -12,6 +12,7 @@ import importlib.util
 import json
 import os
 import sys
+import threading
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -47,17 +48,22 @@ CANSHU = {
 
 
 class FakeLLM:
-    """假的大模型：按顺序回固定内容，记下收到的提示词。"""
+    """假的大模型：固定回一段文字，或者按提示词回；记下收到的提示词。
 
-    def __init__(self, replies):
-        self.replies = list(replies)
+    三个方案是同时问的，所以这里要线程安全。
+    """
+
+    def __init__(self, reply):
+        self.reply = reply
         self.prompts = []
+        self.lock = threading.Lock()
 
     def __call__(self, prompt):
-        self.prompts.append(prompt)
-        if not self.replies:
-            raise RuntimeError("假 llm 没有更多回复了")
-        return self.replies.pop(0)
+        with self.lock:
+            self.prompts.append(prompt)
+        if callable(self.reply):
+            return self.reply(prompt)
+        return self.reply
 
 
 def pick(dish_ingredients=None, drink_ingredients=None):
@@ -73,7 +79,7 @@ def pick(dish_ingredients=None, drink_ingredients=None):
                     "meal": meal,
                     "dishes": [
                         {
-                            "name": "玉竹瘦肉汤",
+                            "name": "第{}天{}的玉竹汤".format(day_number, meal),
                             "kind": "汤",
                             "ingredients": dish_ids,
                             "method": "煲",
@@ -117,7 +123,7 @@ class TestChushenJia(unittest.TestCase):
 
     def test_amounts_and_plans(self):
         """三个方案都合格；量按 usual_qty 中间值 × 人数折算算对。"""
-        fake = FakeLLM([pick_text()] * 3)
+        fake = FakeLLM(pick_text())
 
         passed, dropped = 插口.ask(self.chef, CANSHU, fake)
 
@@ -135,26 +141,33 @@ class TestChushenJia(unittest.TestCase):
         drink_amounts = {item["item"]: item["qty"] for item in drink["ingredients"]}
         self.assertEqual(drink_amounts["bingtang"], 13)  # 调料到 1 克：7.5 × 1.7 = 12.75
 
+        self.assertEqual(len(fake.prompts), 3)  # 三个方案同时问，没有重试
         self.assertIn("yuzhu", fake.prompts[0])
         self.assertIn("参数单", fake.prompts[0])
+        # 禁用单里应该有被体质、忌口碰到的料
+        self.assertIn("shengjiang", fake.prompts[0])
 
     def test_unsuits_triggers_retry(self):
         """碰到 unsuits 的方案会重来一次，第二次合格。"""
         bad = pick_text(dish_ingredients=["shengjiang", "zhushourou"])
         good = pick_text()
-        fake = FakeLLM([bad, good, good, good])
+
+        def reply(prompt):
+            return good if "上一回这套方案有这些问题" in prompt else bad
+
+        fake = FakeLLM(reply)
 
         passed, dropped = 插口.ask(self.chef, CANSHU, fake)
 
         self.assertEqual(dropped, [])
         self.assertEqual(len(passed), 3)
-        self.assertEqual(len(fake.prompts), 4)
-        self.assertTrue(any("unsuits" in prompt for prompt in fake.prompts[1:]))
+        self.assertEqual(len(fake.prompts), 6)  # 三个方案各回一次、各重来一次
+        self.assertTrue(any("unsuits" in prompt for prompt in fake.prompts))
 
     def test_retry_twice_still_bad(self):
         """重试两次还不过，三个方案都不交。"""
         bad = pick_text(dish_ingredients=["shengjiang"])
-        fake = FakeLLM([bad] * 9)
+        fake = FakeLLM(bad)
 
         passed, dropped = 插口.ask(self.chef, CANSHU, fake)
 
