@@ -15,6 +15,8 @@
 import json
 import os
 
+from concurrent.futures import ThreadPoolExecutor
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BENCAO_DIR = os.path.join(ROOT, "本草库")
 PROMPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "prompt.md")
@@ -70,9 +72,23 @@ def _brief(entry):
     )
 
 
-def _bencao_table(bencao):
-    single = [entry for entry in bencao.values() if entry.get("kind") != "方"]
-    recipes = [entry for entry in bencao.values() if entry.get("kind") == "方"]
+def _bencao_table(canshu, bencao):
+    """只列这一家人能用的本草：禁用单里的料直接不出现，免得模型看花眼。"""
+    forbidden = _forbidden(canshu, bencao)
+    single = [
+        entry
+        for entry in bencao.values()
+        if entry.get("kind") != "方" and entry["id"] not in forbidden
+    ]
+    recipes = [
+        entry
+        for entry in bencao.values()
+        if entry.get("kind") == "方"
+        and all(
+            ingredient.get("item") not in forbidden
+            for ingredient in entry.get("ingredients") or []
+        )
+    ]
     lines = [
         "id | 名字 | 种类 | 性 | 适合 | 不适合 | 做法 | 当令 | 相宜 | 相忌",
         "--- | --- | --- | --- | --- | --- | --- | --- | --- | ---",
@@ -88,11 +104,70 @@ def _build_prompt(canshu, bencao, index, feedback=None):
     with open(PROMPT_PATH, encoding="utf-8") as handle:
         template = handle.read()
     return (
-        template.replace("{{本草表}}", _bencao_table(bencao))
+        template.replace("{{本草表}}", _bencao_table(canshu, bencao))
+        .replace("{{不能用的料}}", _forbidden_table(canshu, bencao))
+        .replace("{{这一家人}}", _people_note(canshu.get("people") or []))
         .replace("{{参数单}}", json.dumps(canshu, ensure_ascii=False, indent=2))
         .replace("{{方案序号}}", str(index))
         .replace("{{上回的问题}}", feedback or "（没有）")
     )
+
+
+def _people_note(people):
+    """参数单里的人，写成人话：几个人、什么年龄段、什么体质、什么忌口。"""
+    bands = {}
+    constitutions = set()
+    avoids = set()
+    for person in people:
+        band = person.get("age_band") or "不知道年龄段"
+        bands[band] = bands.get(band, 0) + 1
+        constitutions.update(person.get("constitution") or [])
+        avoids.update(person.get("avoid") or [])
+    parts = ["一共 {} 人".format(len(people))]
+    parts.append("、".join("{} {}".format(band, count) for band, count in bands.items()))
+    if constitutions:
+        parts.append("体质：" + "、".join(sorted(constitutions)))
+    if avoids:
+        parts.append("忌口：" + "、".join(sorted(avoids)))
+    return "；".join(parts)
+
+
+def _forbidden(canshu, bencao):
+    """先算好：这一家人的体质、忌口碰到的料有哪些，给模型一张禁用单。"""
+    reasons = {}
+    people = canshu.get("people") or []
+    for item_id, entry in bencao.items():
+        if entry.get("kind") == "方":
+            continue
+        for person in people:
+            tag = person.get("tag", "某人")
+            hits = sorted(
+                set(entry.get("unsuits") or []) & set(person.get("constitution") or [])
+            )
+            if hits:
+                reasons.setdefault(item_id, set()).add(
+                    "{}的体质 {}".format(tag, "、".join(hits))
+                )
+            for term in person.get("avoid") or []:
+                if _avoid_hit(term, item_id, entry):
+                    reasons.setdefault(item_id, set()).add(
+                        "{}的忌口 {}".format(tag, term)
+                    )
+    return {item_id: sorted(items) for item_id, items in reasons.items()}
+
+
+def _forbidden_table(canshu, bencao):
+    forbidden = _forbidden(canshu, bencao)
+    if not forbidden:
+        return "（没有）"
+    lines = []
+    for item_id in sorted(forbidden):
+        lines.append(
+            "- {} {}：{}".format(
+                item_id, bencao[item_id].get("name"), "；".join(forbidden[item_id])
+            )
+        )
+    return "\n".join(lines)
 
 
 def _parse_json(reply):
@@ -226,6 +301,7 @@ def _plan_problems(plan, canshu, bencao):
                 problems.extend(
                     _item_problems(drink, "第 {} 天的饮".format(index), canshu, bencao, False)
                 )
+
     return problems
 
 
@@ -313,11 +389,20 @@ def _ask_one(canshu, bencao, llm, index):
 
 
 def teach(canshu, llm):
-    """按参数单出三个方案；交得出两个就交两个，连两个都没有就交空列表。"""
+    """按参数单出三个方案；交得出两个就交两个，连两个都没有就交空列表。
+
+    三个方案同时问，免得三个串行加起来超过插口的 60 秒。
+    """
     bencao = _load_bencao()
+    with ThreadPoolExecutor(max_workers=len(PLAN_IDS)) as pool:
+        futures = [
+            pool.submit(_ask_one, canshu, bencao, llm, index)
+            for index in range(1, len(PLAN_IDS) + 1)
+        ]
+        results = [future.result() for future in futures]
+
     plans = []
-    for index, plan_id in enumerate(PLAN_IDS, start=1):
-        plan = _ask_one(canshu, bencao, llm, index)
+    for plan_id, plan in zip(PLAN_IDS, results):
         if plan is not None:
             plan["plan_id"] = plan_id
             plans.append(plan)
