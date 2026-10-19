@@ -12,6 +12,13 @@
   "unsuits": ["寒"],
   "methods": ["炒", "煮", "蒸", "煲", "炖", "生食"],
   "season": [],
+  "usual_qty": {
+    "min": 100,
+    "max": 200,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["doufu"],
   "sources": [
     {
       "title": "《本草纲目》",

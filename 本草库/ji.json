@@ -12,6 +12,13 @@
   "unsuits": ["热"],
   "methods": ["煲", "炖", "蒸", "炒", "煮"],
   "season": [],
+  "usual_qty": {
+    "min": 80,
+    "max": 150,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["xianggu"],
   "sources": [
     {
       "title": "《本草纲目》",

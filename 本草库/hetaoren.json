@@ -12,6 +12,13 @@
   "unsuits": ["热", "痰湿"],
   "methods": ["生食", "煮", "煲", "炖", "蒸"],
   "season": [],
+  "usual_qty": {
+    "min": 10,
+    "max": 20,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["zhima"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

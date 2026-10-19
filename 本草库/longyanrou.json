@@ -12,6 +12,13 @@
   "unsuits": ["湿热", "痰湿"],
   "methods": ["生食", "煮", "煲", "炖", "蒸", "泡"],
   "season": [],
+  "usual_qty": {
+    "min": 10,
+    "max": 15,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["dazao"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

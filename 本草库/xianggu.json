@@ -12,6 +12,13 @@
   "unsuits": ["痰湿"],
   "methods": ["煲", "炖", "煮", "蒸", "炒"],
   "season": [],
+  "usual_qty": {
+    "min": 20,
+    "max": 50,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["ji"],
   "sources": [
     {
       "title": "《本草纲目》",

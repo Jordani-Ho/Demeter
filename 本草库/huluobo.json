@@ -12,6 +12,13 @@
   "unsuits": [],
   "methods": ["炒", "煮", "蒸", "煲", "炖", "生食"],
   "season": [],
+  "usual_qty": {
+    "min": 50,
+    "max": 100,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["niurou"],
   "sources": [
     {
       "title": "《本草纲目》",

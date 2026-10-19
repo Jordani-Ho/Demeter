@@ -12,6 +12,13 @@
   "unsuits": [],
   "methods": ["煲", "炖", "煮", "蒸"],
   "season": [],
+  "usual_qty": {
+    "min": 100,
+    "max": 200,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["shengjiang"],
   "sources": [
     {
       "title": "《本草纲目》",

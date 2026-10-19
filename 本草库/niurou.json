@@ -12,6 +12,13 @@
   "unsuits": ["湿热"],
   "methods": ["煲", "炖", "煮", "蒸", "炒"],
   "season": [],
+  "usual_qty": {
+    "min": 75,
+    "max": 150,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["huluobo"],
   "sources": [
     {
       "title": "《本草纲目》",
