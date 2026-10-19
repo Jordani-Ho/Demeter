@@ -372,5 +372,9 @@ def ask(chef, canshu: dict, llm, timeout: float = TIMEOUT):
         if reason:
             dropped.append((plan, reason))
         else:
+            # 放行的方案带上这次回复的 request_id 和 teacher，定夺从方案里取
+            plan = dict(plan)
+            plan["request_id"] = canshu.get("request_id")
+            plan["teacher"] = chef.name
             passed.append(plan)
     return passed, dropped

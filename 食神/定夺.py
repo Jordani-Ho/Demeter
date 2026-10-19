@@ -199,7 +199,7 @@ def dingduo(plans, data, today, llm=None):
 
     decision = {
         "decision_id": secrets.token_hex(8),
-        "request_id": None,
+        "request_id": chosen.get("request_id"),
         "chosen_plan": chosen.get("plan_id"),
         "teacher": chosen.get("teacher"),
         "plan": chosen,
