@@ -24,8 +24,10 @@ import urllib.request
 
 try:  # 作为包导入时（测试里）
     from .本人库 import apply, bencao_names, load, load_word_list, save
+    from .设置 import get as read_setting
 except ImportError:  # 直接跑 python 食神/记.py 时
     from 本人库 import apply, bencao_names, load, load_word_list, save
+    from 设置 import get as read_setting
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PROMPT_PATH = os.path.join(ROOT, "食神", "提示词", "记.md")
@@ -201,11 +203,11 @@ def ji(text, data, llm):
     return new_data, _make_message(new_data, applied)
 
 
-def http_llm(prompt):
-    """走 OpenAI 兼容的 chat 接口。配置来自三个环境变量。"""
-    base = os.environ.get("SHISHEN_LLM_BASE_URL")
-    key = os.environ.get("SHISHEN_LLM_KEY")
-    model = os.environ.get("SHISHEN_LLM_MODEL")
+def http_llm(prompt, max_tokens=None):
+    """走 OpenAI 兼容的 chat 接口。配置先读环境变量，再读 我的食神/设置.env。"""
+    base = read_setting("SHISHEN_LLM_BASE_URL")
+    key = read_setting("SHISHEN_LLM_KEY")
+    model = read_setting("SHISHEN_LLM_MODEL")
     missing = [
         name
         for name, value in (
@@ -216,18 +218,21 @@ def http_llm(prompt):
         if not value
     ]
     if missing:
-        raise RuntimeError("没有设置环境变量：{}".format("、".join(missing)))
+        raise RuntimeError(
+            "没有设置：{}（环境变量或 我的食神/设置.env）".format("、".join(missing))
+        )
+
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": 0,
+    }
+    if max_tokens:
+        body["max_tokens"] = int(max_tokens)
 
     request = urllib.request.Request(
         base.rstrip("/") + "/chat/completions",
-        data=json.dumps(
-            {
-                "model": model,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 0,
-            },
-            ensure_ascii=False,
-        ).encode("utf-8"),
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
         headers={
             "Content-Type": "application/json",
             "Authorization": "Bearer " + key,

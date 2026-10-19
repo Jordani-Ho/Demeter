@@ -301,6 +301,45 @@ class TestJi(unittest.TestCase):
         self.assertEqual(saved["people"][0]["constitution"], ["阴虚", "热"])
         self.assertTrue(buffer.getvalue().strip())
 
+    def test_add_person_can_carry_constitution(self):
+        """大模型把体质、忌口直接放进 add_person 也要收下。"""
+        text = "我爸是阴虚火旺，忌辛辣"
+        reply = _json(
+            [
+                {
+                    "op": "add_person",
+                    "name": "爸爸",
+                    "constitution": ["阴虚", "热"],
+                    "avoid": ["辛"],
+                }
+            ]
+        )
+
+        data, _ = 记.ji(text, 本人库.empty(), FakeLLM(reply))
+
+        person = data["people"][0]
+        self.assertEqual(person["name"], "爸爸")
+        self.assertEqual(person["constitution"], ["阴虚", "热"])
+        self.assertEqual(person["avoid"], ["辛"])
+
+    def test_add_person_with_bad_constitution_is_blocked(self):
+        """add_person 里的体质不在词表，整条挡下，原话还是进 note。"""
+        text = "我爸最近上火"
+        reply = _json(
+            [{"op": "add_person", "name": "爸爸", "constitution": ["上火"]}]
+        )
+
+        data, _ = 记.ji(text, 本人库.empty(), FakeLLM(reply))
+
+        self.assertFalse(any(person["name"] == "爸爸" for person in data["people"]))
+        self.assertTrue(
+            any(
+                note["text"] == text
+                for person in data["people"]
+                for note in person["notes"]
+            )
+        )
+
     @unittest.skipUnless(
         os.environ.get("SHISHEN_LLM_KEY"), "没有设置 SHISHEN_LLM_KEY，跳过连网测试"
     )

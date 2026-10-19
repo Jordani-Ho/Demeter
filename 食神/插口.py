@@ -186,7 +186,16 @@ def _find_banned(plan, banned):
     return None
 
 
-def _check_item(item, label, bencao, is_dish):
+def _avoid_hit(term, item_id, entry):
+    """参数单里的忌口词碰到这味料没有：id、中文名、味，三种。"""
+    if not isinstance(term, str):
+        return False
+    if term == item_id or term == entry.get("name"):
+        return True
+    return term in (entry.get("flavor") or [])
+
+
+def _check_item(item, label, bencao, is_dish, people):
     """一道菜或一壶茶：名字、料、量、法；菜还有 kind，两样都有 sources。"""
     if not isinstance(item, dict):
         return "{}不是对象".format(label)
@@ -222,6 +231,13 @@ def _check_item(item, label, bencao, is_dish):
         unit = ingredient.get("unit")
         if not isinstance(unit, str) or not unit.strip():
             return "{}的料“{}”没有单位".format(label, item_id)
+        for person in people:
+            tag = person.get("tag", "某人")
+            for term in person.get("avoid") or []:
+                if _avoid_hit(term, item_id, entry):
+                    return "{}的料“{}”碰到 {} 的忌口“{}”".format(
+                        label, item_id, tag, term
+                    )
     sources = item.get("sources")
     if not isinstance(sources, list):
         return "{}没有 sources".format(label)
@@ -268,7 +284,9 @@ def _check_plan(plan, canshu, bencao, banned):
             if not isinstance(dishes, list) or not dishes:
                 return prefix + "第 {} 天 {} 没有菜".format(index, meal.get("meal"))
             for dish in dishes:
-                reason = _check_item(dish, "菜", bencao, True)
+                reason = _check_item(
+                    dish, "菜", bencao, True, canshu.get("people") or []
+                )
                 if reason:
                     return prefix + "第 {} 天 {}".format(index, reason)
         if canshu["range"]["drinks"]:
@@ -276,7 +294,9 @@ def _check_plan(plan, canshu, bencao, banned):
             if not isinstance(drinks, list) or not drinks:
                 return prefix + "第 {} 天没有饮".format(index)
             for drink in drinks:
-                reason = _check_item(drink, "饮", bencao, False)
+                reason = _check_item(
+                    drink, "饮", bencao, False, canshu.get("people") or []
+                )
                 if reason:
                     return prefix + "第 {} 天 {}".format(index, reason)
 
