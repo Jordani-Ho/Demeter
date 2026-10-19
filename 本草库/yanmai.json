@@ -12,6 +12,12 @@
   "unsuits": ["湿"],
   "methods": ["煮", "蒸", "煲"],
   "season": [],
+  "usual_qty": {
+    "min": 30,
+    "max": 50,
+    "unit": "g",
+    "per": "人·餐"
+  },
   "sources": [
     {
       "title": "《中药大辞典》",

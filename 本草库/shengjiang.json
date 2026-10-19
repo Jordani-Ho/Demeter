@@ -1,7 +1,7 @@
 {
   "id": "shengjiang",
   "name": "生姜",
-  "kind": "调料",
+  "kind": "药食同源",
   "nature": "微温",
   "flavor": ["辛"],
   "meridian": ["肺", "脾", "胃"],
@@ -12,6 +12,13 @@
   "unsuits": ["热", "阴虚"],
   "methods": ["生食", "煮", "炒", "蒸", "炖", "泡"],
   "season": [],
+  "usual_qty": {
+    "min": 2,
+    "max": 5,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["cong", "dazao", "jiyu"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

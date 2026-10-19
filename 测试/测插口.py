@@ -226,12 +226,13 @@ class TestChakou(unittest.TestCase):
         self.assertEqual(len(dropped), 1)
         self.assertIn("禁词", dropped[0][1])
 
-    def test_banned_word_only_in_visible_fields(self):
-        """禁词只查 idea、name、steps、why、when，别的字段不扫。"""
+    def test_banned_word_in_ingredient_name(self):
+        """料的 name 里有禁词，也要被查出来（新规定把料的 name 也加进来了）。"""
         passed, dropped = 插口.ask(load_fake("禁词在料名"), CANSHU, None)
 
-        self.assertEqual(len(passed), 3)
-        self.assertEqual(dropped, [])
+        self.assertEqual(passed, [])
+        self.assertEqual(len(dropped), 3)
+        self.assertIn("禁词", dropped[0][1])
 
     def test_too_many_plans_rejected(self):
         """多于三个方案，这次回复整个不要。"""

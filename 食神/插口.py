@@ -150,15 +150,20 @@ def _is_number(value):
 
 
 def _visible_texts(item):
-    """给人看的文字：name、steps、why、when。"""
+    """给人看的文字：name、steps、why、when，以及料的 name。"""
     for field in ("name", "steps", "why", "when"):
         value = item.get(field)
         if isinstance(value, str):
             yield value
+    for ingredient in item.get("ingredients") or []:
+        if isinstance(ingredient, dict):
+            name = ingredient.get("name")
+            if isinstance(name, str):
+                yield name
 
 
 def _find_banned(plan, banned):
-    """只在给人看的文字里按字面包含查禁词：idea、name、steps、why、when。"""
+    """只在给人看的文字里按字面包含查禁词：idea、name（含料的 name）、steps、why、when。"""
     texts = []
     if isinstance(plan.get("idea"), str):
         texts.append(plan["idea"])

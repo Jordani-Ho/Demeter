@@ -12,6 +12,13 @@
   "unsuits": ["痰湿", "寒"],
   "methods": ["煲", "炖", "煮", "蒸", "泡"],
   "season": ["秋", "冬"],
+  "usual_qty": {
+    "min": 10,
+    "max": 15,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["zhushourou"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

@@ -12,6 +12,13 @@
   "unsuits": ["痰湿", "湿"],
   "methods": ["煮", "蒸", "炒", "煎", "炖"],
   "season": [],
+  "usual_qty": {
+    "min": 50,
+    "max": 60,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["fanqie"],
   "sources": [
     {
       "title": "《本草纲目》",

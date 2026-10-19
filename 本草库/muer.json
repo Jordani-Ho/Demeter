@@ -12,6 +12,13 @@
   "unsuits": ["湿"],
   "methods": ["炒", "煮", "蒸", "煲", "炖"],
   "season": [],
+  "usual_qty": {
+    "min": 5,
+    "max": 10,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["zhushourou"],
   "sources": [
     {
       "title": "《本草纲目》",

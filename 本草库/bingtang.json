@@ -12,6 +12,13 @@
   "unsuits": ["湿", "湿热"],
   "methods": ["煮", "炖", "泡", "蒸"],
   "season": [],
+  "usual_qty": {
+    "min": 5,
+    "max": 10,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["xueli"],
   "sources": [
     {
       "title": "《本草纲目》",

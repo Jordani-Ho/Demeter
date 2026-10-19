@@ -12,6 +12,13 @@
   "unsuits": ["气虚", "寒"],
   "methods": ["泡", "煮", "蒸"],
   "season": ["秋"],
+  "usual_qty": {
+    "min": 3,
+    "max": 5,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["gouqizi", "luohanguo"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

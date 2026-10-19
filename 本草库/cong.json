@@ -12,6 +12,13 @@
   "unsuits": ["热", "阴虚"],
   "methods": ["生食", "煮", "炒", "蒸"],
   "season": [],
+  "usual_qty": {
+    "min": 5,
+    "max": 10,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["shengjiang"],
   "sources": [
     {
       "title": "《本草纲目》",

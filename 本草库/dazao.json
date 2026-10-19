@@ -12,6 +12,13 @@
   "unsuits": ["湿", "痰湿"],
   "methods": ["生食", "煮", "蒸", "煲", "炖", "泡"],
   "season": [],
+  "usual_qty": {
+    "min": 10,
+    "max": 20,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["chenpi", "longyanrou", "shengjiang"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

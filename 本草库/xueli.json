@@ -12,6 +12,13 @@
   "unsuits": ["寒"],
   "methods": ["生食", "蒸", "煮", "炖", "煲"],
   "season": ["秋", "冬"],
+  "usual_qty": {
+    "min": 100,
+    "max": 200,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["baihe", "bingtang", "yiner"],
   "sources": [
     {
       "title": "《名医别录》",

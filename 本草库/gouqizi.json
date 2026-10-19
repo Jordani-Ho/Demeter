@@ -12,6 +12,13 @@
   "unsuits": ["湿", "热"],
   "methods": ["泡", "煮", "蒸", "煲", "炖", "生食"],
   "season": [],
+  "usual_qty": {
+    "min": 5,
+    "max": 10,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["juhua"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

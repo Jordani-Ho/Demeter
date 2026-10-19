@@ -133,7 +133,7 @@ def load_entries(directory):
     return entries, errors
 
 
-def check_entry(filename, data, known_ids, words):
+def check_entry(filename, data, known_ids, words, entries_by_id):
     """检查一条条目，返回问题列表（每条一句话，以“文件名：字段”开头）。"""
     problems = []
     natures = set(words["性"])
@@ -268,6 +268,59 @@ def check_entry(filename, data, known_ids, words):
                 if not isinstance(unit, str) or unit.strip() == "":
                     bad(label, "unit 必须是非空字符串")
 
+    # 8. usual_qty：单味必填，方不填
+    usual_qty = data.get("usual_qty")
+    if kind == "方":
+        if usual_qty is not None:
+            bad("usual_qty", "“方”不填 usual_qty")
+    elif not isinstance(usual_qty, dict):
+        bad("usual_qty", "单味条目必须有 usual_qty 对象")
+    else:
+        low = usual_qty.get("min")
+        high = usual_qty.get("max")
+        if not is_number(low) or low <= 0:
+            bad("usual_qty", "min 要是大于 0 的数")
+        if not is_number(high) or high <= 0:
+            bad("usual_qty", "max 要是大于 0 的数")
+        if is_number(low) and is_number(high) and low > high:
+            bad("usual_qty", "min 不能大于 max")
+        unit = usual_qty.get("unit")
+        if not isinstance(unit, str) or not unit.strip():
+            bad("usual_qty", "unit 要是非空字符串")
+        if usual_qty.get("per") != "人·餐":
+            bad("usual_qty", "per 要写“人·餐”")
+
+    # 9. goes_with / clashes_with 里的 id 都要在本草库里
+    for field in ("goes_with", "clashes_with"):
+        if field not in data:
+            continue
+        value = data[field]
+        if not isinstance(value, list) or not all(
+            isinstance(other, str) for other in value
+        ):
+            bad(field, "应为本草 id 的字符串数组")
+            continue
+        for other in value:
+            if other not in known_ids:
+                bad(field, "“{}”不是本草库里的条目".format(other))
+
+    # 10. clashes_with 相忌要两边都写
+    clashes = data.get("clashes_with")
+    own_id = data.get("id")
+    if isinstance(clashes, list) and isinstance(own_id, str):
+        for other_id in clashes:
+            other = entries_by_id.get(other_id)
+            if not isinstance(other, dict):
+                continue  # 上面已经报过“不在库里”
+            other_clashes = other.get("clashes_with")
+            if not isinstance(other_clashes, list) or own_id not in other_clashes:
+                bad(
+                    "clashes_with",
+                    "“{}”的 clashes_with 里没有写回“{}”（相忌要两边都写）".format(
+                        other_id, own_id
+                    ),
+                )
+
     return problems
 
 
@@ -303,9 +356,13 @@ def main(argv):
                 )
 
     known_ids = set(id_to_files)
+    entries_by_id = {}
+    for filename, data in entries:
+        if isinstance(data, dict) and isinstance(data.get("id"), str):
+            entries_by_id.setdefault(data["id"], data)
 
     for filename, data in entries:
-        problems.extend(check_entry(filename, data, known_ids, words))
+        problems.extend(check_entry(filename, data, known_ids, words, entries_by_id))
 
     if problems:
         for line in problems:

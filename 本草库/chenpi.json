@@ -12,6 +12,13 @@
   "unsuits": ["阴虚", "燥"],
   "methods": ["泡", "煮", "煲", "炖", "蒸"],
   "season": [],
+  "usual_qty": {
+    "min": 3,
+    "max": 5,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["dazao"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",

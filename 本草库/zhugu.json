@@ -12,6 +12,13 @@
   "unsuits": ["湿热", "痰湿"],
   "methods": ["煲", "炖", "煮"],
   "season": [],
+  "usual_qty": {
+    "min": 100,
+    "max": 200,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["shanyao", "xiyangcai"],
   "sources": [
     {
       "title": "《中药大辞典》",

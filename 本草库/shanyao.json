@@ -12,6 +12,13 @@
   "unsuits": ["湿"],
   "methods": ["蒸", "煮", "煲", "炖", "炒", "生食"],
   "season": [],
+  "usual_qty": {
+    "min": 50,
+    "max": 100,
+    "unit": "g",
+    "per": "人·餐"
+  },
+  "goes_with": ["fuling", "qianshi", "zhugu"],
   "sources": [
     {
       "title": "《中华人民共和国药典》2020年版一部",
