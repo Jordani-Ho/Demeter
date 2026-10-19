@@ -45,7 +45,7 @@ def load_fake(name):
 
 class TestChakou(unittest.TestCase):
     def test_good_chef(self):
-        """好的厨神：三个方案全合格，参数单没被改动。"""
+        """好的厨神：三个方案全合格，参数单没被改动，放行的方案带上 request_id 和 teacher。"""
         before = copy.deepcopy(CANSHU)
 
         passed, dropped = 插口.ask(load_fake("好的"), CANSHU, None)
@@ -56,6 +56,8 @@ class TestChakou(unittest.TestCase):
         for plan in passed:
             self.assertIn(plan["plan_id"], ("A", "B", "C"))
             self.assertEqual(len(plan["days"]), CANSHU["range"]["days"])
+            self.assertEqual(plan["request_id"], CANSHU["request_id"])
+            self.assertEqual(plan["teacher"], "好的")
 
     def test_bad_skill_json_is_rejected(self):
         """坏说明书：reads 里多了“本人库”，装不上。"""

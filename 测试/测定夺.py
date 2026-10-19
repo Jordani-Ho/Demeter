@@ -59,7 +59,13 @@ def make_plan(plan_id, dishes, idea=None):
                 }
             )
         days.append({"day": number, "meals": meals})
-    return {"plan_id": plan_id, "idea": idea or "想法", "days": days}
+    return {
+        "plan_id": plan_id,
+        "idea": idea or "想法",
+        "request_id": "req-定夺-1",
+        "teacher": "厨神甲",
+        "days": days,
+    }
 
 
 def library(people=None, feelings=None, saved=None, history=None):
@@ -213,6 +219,18 @@ class TestDingduo(unittest.TestCase):
         self.assertEqual(reason, "近况偏燥，选润一点的。")
         self.assertTrue(prompts)
         self.assertIn("方案 B", prompts[0])
+
+    def test_decision_takes_request_id_and_teacher_from_plan(self):
+        """决定里的 request_id、teacher 从放行的方案里取。"""
+        data = library()
+        first = make_plan("A", [[("玉竹汤", ["yuzhu"])]])
+        second = make_plan("B", [[("雪梨汤", ["xueli"])]])
+
+        decision, _reason = dingduo([first, second], data, TODAY)
+
+        self.assertEqual(decision["request_id"], "req-定夺-1")
+        self.assertEqual(decision["teacher"], "厨神甲")
+        self.assertEqual(decision["plan"]["request_id"], "req-定夺-1")
 
     def test_history_entry(self):
         """history_entry 的格式对：日期、决定 id、菜名。"""
