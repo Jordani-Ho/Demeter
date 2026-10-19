@@ -1,0 +1,49 @@
+{
+  "id": "xueliyinertangshui",
+  "name": "雪梨银耳糖水",
+  "kind": "方",
+  "nature": "凉",
+  "flavor": ["甘"],
+  "meridian": ["肺", "胃"],
+  "effects": ["润肺生津", "养阴清燥"],
+  "good_for": ["秋燥", "干咳", "咽干"],
+  "avoid_for": ["脾胃虚寒"],
+  "suits": ["燥", "热"],
+  "unsuits": ["寒"],
+  "methods": ["炖", "煮"],
+  "season": ["秋", "冬"],
+  "sources": [
+    {
+      "title": "《名医别录》",
+      "where": "果部·梨",
+      "note": "梨甘微酸、性凉，能止渴润肺，是秋日润燥的果子。"
+    },
+    {
+      "title": "《中华本草》",
+      "where": "银耳条",
+      "note": "银耳甘淡平，滋阴润肺、养胃生津，和梨同炖更润。"
+    },
+    {
+      "title": "《本草纲目》",
+      "where": "果部·石蜜",
+      "note": "石蜜（冰糖）能润肺止咳、生津，给糖水调味。"
+    }
+  ],
+  "ingredients": [
+    {
+      "item": "xueli",
+      "qty": 300,
+      "unit": "g"
+    },
+    {
+      "item": "yiner",
+      "qty": 20,
+      "unit": "g"
+    },
+    {
+      "item": "bingtang",
+      "qty": 20,
+      "unit": "g"
+    }
+  ]
+}

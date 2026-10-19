@@ -1,0 +1,27 @@
+{
+  "id": "caixin",
+  "name": "菜心",
+  "kind": "食材",
+  "nature": "平",
+  "flavor": ["甘"],
+  "meridian": ["脾", "胃"],
+  "effects": ["健脾开胃", "清热利水"],
+  "good_for": ["脾虚", "口渴"],
+  "avoid_for": ["脾胃虚寒"],
+  "suits": ["气虚"],
+  "unsuits": ["寒"],
+  "methods": ["炒", "煮", "蒸", "煲"],
+  "season": [],
+  "sources": [
+    {
+      "title": "《中华本草》",
+      "where": "菜薹条",
+      "note": "记菜薹（菜心）甘平，能健脾开胃。"
+    },
+    {
+      "title": "《中药大辞典》",
+      "where": "菜薹条",
+      "note": "说它健脾、利水。"
+    }
+  ]
+}

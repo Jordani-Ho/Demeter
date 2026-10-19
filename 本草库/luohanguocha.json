@@ -1,0 +1,34 @@
+{
+  "id": "luohanguocha",
+  "name": "罗汉果茶",
+  "kind": "方",
+  "nature": "凉",
+  "flavor": ["甘"],
+  "meridian": ["肺", "大肠"],
+  "effects": ["清热润肺", "利咽开音", "滑肠"],
+  "good_for": ["咽干", "燥咳", "便秘"],
+  "avoid_for": ["脾胃虚寒"],
+  "suits": ["热", "燥"],
+  "unsuits": ["寒"],
+  "methods": ["泡"],
+  "season": ["秋"],
+  "sources": [
+    {
+      "title": "《中华人民共和国药典》2020年版一部",
+      "where": "罗汉果",
+      "note": "罗汉果甘凉，清热润肺、滑肠通便，泡茶清甜。"
+    },
+    {
+      "title": "《中华本草》",
+      "where": "罗汉果条",
+      "note": "记罗汉果利咽开音，咽干声哑时常用。"
+    }
+  ],
+  "ingredients": [
+    {
+      "item": "luohanguo",
+      "qty": 10,
+      "unit": "g"
+    }
+  ]
+}
