@@ -1,0 +1,44 @@
+{
+  "id": "lianzibaiheshouroutang",
+  "name": "莲子百合瘦肉汤",
+  "kind": "方",
+  "nature": "平",
+  "flavor": ["甘"],
+  "meridian": ["心", "肺", "脾"],
+  "effects": ["养阴润肺", "清心安神", "补虚"],
+  "good_for": ["阴虚燥咳", "失眠", "体虚"],
+  "avoid_for": ["风寒咳嗽", "脾胃虚寒"],
+  "suits": ["阴虚", "燥"],
+  "unsuits": ["寒"],
+  "methods": ["煲"],
+  "season": ["秋"],
+  "sources": [
+    {
+      "title": "《中华人民共和国药典》2020年版一部",
+      "where": "莲子、百合",
+      "note": "莲子补脾养心，百合养阴润肺，两味都常入汤。"
+    },
+    {
+      "title": "《中药大辞典》",
+      "where": "猪肉条",
+      "note": "猪瘦肉甘咸平，能滋阴润燥，给汤添补虚之力。"
+    }
+  ],
+  "ingredients": [
+    {
+      "item": "lianzi",
+      "qty": 30,
+      "unit": "g"
+    },
+    {
+      "item": "baihe",
+      "qty": 30,
+      "unit": "g"
+    },
+    {
+      "item": "zhushourou",
+      "qty": 300,
+      "unit": "g"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "chenpidazaocha",
+  "name": "陈皮大枣茶",
+  "kind": "方",
+  "nature": "温",
+  "flavor": ["辛", "甘"],
+  "meridian": ["脾", "肺", "心"],
+  "effects": ["理气健脾", "养血安神"],
+  "good_for": ["脾虚", "痰湿", "气血不足"],
+  "avoid_for": ["湿热", "阴虚火旺"],
+  "suits": ["气虚", "痰湿", "气郁"],
+  "unsuits": ["湿热", "阴虚"],
+  "methods": ["泡"],
+  "season": ["冬"],
+  "sources": [
+    {
+      "title": "《中华人民共和国药典》2020年版一部",
+      "where": "陈皮、大枣",
+      "note": "陈皮理气燥湿，大枣补中养血，两味一理一补。"
+    },
+    {
+      "title": "《本草纲目》",
+      "where": "果部·橘",
+      "note": "橘皮（陈皮）能理气调中；枣能补中益气、养血安神。"
+    }
+  ],
+  "ingredients": [
+    {
+      "item": "chenpi",
+      "qty": 5,
+      "unit": "g"
+    },
+    {
+      "item": "dazao",
+      "qty": 20,
+      "unit": "g"
+    }
+  ]
+}
