@@ -6,17 +6,21 @@
     python 测试/检查本草库.py              # 检查 本草库/
     python 测试/检查本草库.py 测试/样例     # 检查指定目录，比如故意写坏的样例
 
-只用 Python 3 标准库。全部合格时打印“本草库合格：N 条”并退出 0；
+只用 Python 3 标准库。词表（本草库/词表.json）是本草库的一部分，检查时一起读。
+全部合格时打印“本草库合格：N 条”并退出 0；
 有不合格的，逐条打印哪个文件、哪个字段、哪里不对，退出 1。
 """
 
 import json
 import os
+import re
 import sys
 
 # 仓库根目录：本文件在 <根>/测试/ 下
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_DIR = os.path.join(ROOT, "本草库")
+WORD_LIST_NAME = "词表.json"
+DEFAULT_WORD_LIST = os.path.join(DEFAULT_DIR, WORD_LIST_NAME)
 
 KINDS = ("食材", "药食同源", "调料", "茶饮", "方")
 METHODS = ("煎", "炒", "焖", "炸", "焗", "蒸", "煮", "煲", "炖", "泡", "生食")
@@ -55,6 +59,36 @@ def is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+def load_word_list(directory):
+    """读词表。被检查的目录里有 词表.json 就用它，没有就用 本草库/词表.json。"""
+    path = os.path.join(directory, WORD_LIST_NAME)
+    if not os.path.isfile(path):
+        path = DEFAULT_WORD_LIST
+    try:
+        with open(path, encoding="utf-8-sig") as handle:
+            data = json.load(handle)
+    except OSError as exc:
+        return None, ["词表 {} 读不了：{}".format(path, exc)]
+    except json.JSONDecodeError as exc:
+        return None, [
+            "词表 {} 不是合法的 JSON（第 {} 行第 {} 列：{}）".format(
+                path, exc.lineno, exc.colno, exc.msg
+            )
+        ]
+    if not isinstance(data, dict):
+        return None, ["词表 {} 应为 JSON 对象".format(path)]
+    problems = []
+    for key in ("体质", "偏向", "性", "味"):
+        value = data.get(key)
+        if not isinstance(value, list) or not all(
+            isinstance(word, str) for word in value
+        ):
+            problems.append("词表 {}：{} 应为字符串数组".format(path, key))
+    if problems:
+        return None, problems
+    return data, []
+
+
 def load_entries(directory):
     """读目录下所有 .json 文件。
 
@@ -64,7 +98,9 @@ def load_entries(directory):
     """
     try:
         names = sorted(
-            name for name in os.listdir(directory) if name.lower().endswith(".json")
+            name
+            for name in os.listdir(directory)
+            if name.lower().endswith(".json") and name != WORD_LIST_NAME
         )
     except OSError as exc:
         return [], ["目录 {} 打不开：{}".format(directory, exc)]
@@ -97,9 +133,12 @@ def load_entries(directory):
     return entries, errors
 
 
-def check_entry(filename, data, known_ids):
+def check_entry(filename, data, known_ids, words):
     """检查一条条目，返回问题列表（每条一句话，以“文件名：字段”开头）。"""
     problems = []
+    natures = set(words["性"])
+    tastes = set(words["味"])
+    suit_words = set(words["体质"]) | set(words["偏向"])
 
     def bad(field, message):
         problems.append("{}：{} {}".format(filename, field, message))
@@ -107,10 +146,13 @@ def check_entry(filename, data, known_ids):
     if not isinstance(data, dict):
         return ["{}：整个文件应为 JSON 对象，实际是{}".format(filename, type_name(data))]
 
-    # 1. 文件名和 id 一致
+    # 1. 文件名和 id 一致；id 只能是小写字母和数字
     stem = filename[:-len(".json")]
-    if "id" in data and isinstance(data["id"], str) and data["id"] != stem:
-        bad("id", "与文件名不一致（文件名是“{}”，id 写的是“{}”）".format(stem, data["id"]))
+    if "id" in data and isinstance(data["id"], str):
+        if data["id"] != stem:
+            bad("id", "与文件名不一致（文件名是“{}”，id 写的是“{}”）".format(stem, data["id"]))
+        if not re.fullmatch(r"[a-z0-9]+", data["id"]):
+            bad("id", "“{}”只能用小写字母和数字".format(data["id"]))
 
     # 2. 必填字段都在，类型对
     for field, expected in REQUIRED.items():
@@ -133,6 +175,21 @@ def check_entry(filename, data, known_ids):
     kind = data.get("kind")
     if isinstance(kind, str) and kind not in KINDS:
         bad("kind", "“{}”不在允许的值里（{}）".format(kind, "、".join(KINDS)))
+
+    # 3.5 nature 在词表的“性”里，flavor 的每一项在“味”里
+    nature = data.get("nature")
+    if isinstance(nature, str) and nature.strip() and nature not in natures:
+        bad("nature", "“{}”不在词表的性里（{}）".format(nature, "、".join(words["性"])))
+    flavor = data.get("flavor")
+    if isinstance(flavor, list):
+        for index, word in enumerate(flavor):
+            if isinstance(word, str) and word not in tastes:
+                bad(
+                    "flavor",
+                    "第 {} 项“{}”不在词表的味里（{}）".format(
+                        index + 1, word, "、".join(words["味"])
+                    ),
+                )
 
     # 4. methods 只能取允许的做法
     methods = data.get("methods")
@@ -163,6 +220,27 @@ def check_entry(filename, data, known_ids):
                     bad(label, "{} 必须是非空字符串".format(key))
             if "note" in source and not isinstance(source["note"], str):
                 bad(label, "note 应为字符串，实际是{}".format(type_name(source["note"])))
+
+    # 6. suits / unsuits 只能用词表里的体质和偏向
+    for field in ("suits", "unsuits"):
+        if field not in data:
+            continue
+        value = data[field]
+        if not isinstance(value, list) or not all(
+            isinstance(word, str) for word in value
+        ):
+            bad(field, "应为字符串数组")
+            continue
+        for index, word in enumerate(value):
+            if word not in suit_words:
+                bad(
+                    field,
+                    "第 {} 项“{}”不在词表的体质或偏向里（{}）".format(
+                        index + 1,
+                        word,
+                        "、".join(words["体质"] + words["偏向"]),
+                    ),
+                )
 
     # 方：多一个 ingredients，里面的 item 都要能在本草库里找到
     if kind == "方":
@@ -201,6 +279,14 @@ def main(argv):
 
     entries, problems = load_entries(directory)
 
+    # 词表是本草库的一部分，条目里的性、味、suits/unsuits 都靠它对词
+    words, word_problems = load_word_list(directory)
+    if words is None:
+        for line in word_problems:
+            print("不合格：" + line)
+        return 1
+    problems.extend(word_problems)
+
     # 7. id 不重复（先收集所有出现过的 id）
     id_to_files = {}
     for filename, data in entries:
@@ -219,7 +305,7 @@ def main(argv):
     known_ids = set(id_to_files)
 
     for filename, data in entries:
-        problems.extend(check_entry(filename, data, known_ids))
+        problems.extend(check_entry(filename, data, known_ids, words))
 
     if problems:
         for line in problems:
