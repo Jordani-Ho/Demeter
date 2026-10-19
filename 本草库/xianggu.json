@@ -1,6 +1,7 @@
 {
   "id": "xianggu",
   "name": "香菇",
+  "aliases": ["冬菇"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

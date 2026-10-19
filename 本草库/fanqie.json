@@ -1,6 +1,7 @@
 {
   "id": "fanqie",
   "name": "番茄",
+  "aliases": ["西红柿"],
   "kind": "食材",
   "nature": "凉",
   "flavor": ["甘", "酸"],

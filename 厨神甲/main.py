@@ -5,8 +5,10 @@
 分工（开发总纲第五节之三）：
 - 大模型只负责出一道菜池：汤、菜、主食、饮，每样标明适合午还是晚。每个方案调一次，
   输出上限 6000 token。菜池不过自查才打回，最多两次。
-- 代码负责排菜：每餐几道照第六节，一周之内一样菜、一样饮最多两次（主食不算），
-  相邻两天的汤不一样，晚餐不放生姜，当令的先排。同样的菜池排出来永远一样。
+- 代码负责排菜：每餐几道照第六节；一周之内一样菜、一样饮最多两次（主食不算）；
+  相邻两天的汤不一样；晚餐不放生姜；当令的先排；汤只放咸汤（肉、骨、鱼、菜），
+  糖水、茶只进饮；晚餐主食优先米饭、不和当天午餐一样；同一味料一周最多出现在
+  3 天里（米面和调料不算）。同样的菜池排出来永远一样。
 
 对外一个函数：
 
@@ -32,6 +34,7 @@ METHODS = ("煎", "炒", "焖", "炸", "焗", "蒸", "煮", "煲", "炖", "泡",
 BASIC_KINDS = ("食材", "药食同源", "调料", "茶饮")
 STAPLES = ("主食", "粥")
 MEALS = ("午", "晚")
+FRIED_METHODS = ("煎", "炸", "焗")  # 做法里写到这些，method 就得是同一个法
 
 # 菜池至少这么多（出得多可以多，排菜时轮流用）
 MIN_SOUPS = 5
@@ -41,8 +44,24 @@ MIN_DRINKS = 4
 
 # 一周里同一道菜、同一壶饮最多几次
 MAX_TIMES = 2
+# 一周里同一味料最多出现在几天（米面、调料不算）
+MAX_INGREDIENT_DAYS = 3
 
 GINGER = "shengjiang"
+
+# 米面：不算“同一味料最多几天”
+GRAIN_IDS = ("dami", "xiaomi", "yanmai", "yumi")
+# 这些“食材”不算咸汤的主料（水果、坚果、菌藻、豆子、米面）
+NON_SAVORY_IDS = (
+    "xueli",
+    "pingguo",
+    "shizi",
+    "hetaoren",
+    "yiner",
+    "heidou",
+    "huangdou",
+    "lvdou",
+) + GRAIN_IDS
 
 # 人数折算：按年龄段
 FACTORS = {
@@ -88,10 +107,12 @@ def _brief(entry):
 
 
 def _avoid_hit(term, item_id, entry):
-    """忌口词碰到这味料没有：本草 id、中文名、词表里的味，三种。"""
+    """忌口词碰到这味料没有：本草 id、中文名、别名、词表里的味。"""
     if not isinstance(term, str):
         return False
     if term == item_id or term == entry.get("name"):
+        return True
+    if term in (entry.get("aliases") or []):
         return True
     return term in (entry.get("flavor") or [])
 
@@ -259,6 +280,47 @@ def _expand(item, bencao):
     return ids, None, name, method, None
 
 
+def _name_missing_ingredient(name, ids, bencao):
+    """菜名里出现了本草库某味料的名字或别名，料里却没有：返回这些名字。"""
+    if not isinstance(name, str) or not name:
+        return []
+    missing = []
+    for item_id, entry in bencao.items():
+        if entry.get("kind") == "方":
+            continue
+        words = []
+        item_name = entry.get("name")
+        if isinstance(item_name, str) and item_name:
+            words.append(item_name)
+        words.extend(
+            alias
+            for alias in entry.get("aliases") or []
+            if isinstance(alias, str) and alias
+        )
+        for word in words:
+            if word in name and item_id not in ids:
+                missing.append(word)
+    return sorted(set(missing))
+
+
+def _method_steps_problems(item, label):
+    """做法里写了煎、炸、焗，method 却不是这个法的，打回。"""
+    steps = item.get("steps")
+    if not isinstance(steps, str) or not steps.strip():
+        return []
+    mentioned = [method for method in FRIED_METHODS if method in steps]
+    if not mentioned:
+        return []
+    method = item.get("method")
+    if method in mentioned:
+        return []
+    return [
+        "{}的做法里写了“{}”，method 却是“{}”，要把 method 改成同一个法".format(
+            label, "、".join(mentioned), method
+        )
+    ]
+
+
 def _item_problems(item, label, canshu, bencao, is_dish):
     """菜池里的这一道菜或这一壶饮：结构、料在不在库里、碰不碰忌、菜名老不老实。"""
     if not isinstance(item, dict):
@@ -277,6 +339,7 @@ def _item_problems(item, label, canshu, bencao, is_dish):
             problems.append(label + "的 kind 不在允许的范围里")
     if method not in METHODS:
         problems.append(label + "的 method 不在允许的做法里")
+    problems.extend(_method_steps_problems(item, label))
     if is_dish:
         has_steps = isinstance(item.get("steps"), str) and item["steps"].strip()
         if recipe_id is None and not has_steps:
@@ -329,22 +392,6 @@ def _item_problems(item, label, canshu, bencao, is_dish):
     return problems
 
 
-def _name_missing_ingredient(name, ids, bencao):
-    """菜名里出现了本草库某味料的名字，料里却没有：返回这些名字。"""
-    if not isinstance(name, str) or not name:
-        return []
-    missing = []
-    for item_id, entry in bencao.items():
-        if entry.get("kind") == "方":
-            continue
-        item_name = entry.get("name")
-        if not isinstance(item_name, str) or not item_name:
-            continue
-        if item_name in name and item_id not in ids:
-            missing.append(item_name)
-    return sorted(set(missing))
-
-
 def _meals_of(item):
     """这道菜适合哪几餐：["午"]、["晚"] 或 ["午","晚"]。"""
     meals = item.get("meals") if isinstance(item, dict) else None
@@ -354,8 +401,8 @@ def _meals_of(item):
 
 
 def _pool_problems(pool, canshu, bencao):
-    """菜池自查：只查菜池本身（结构、料、忌、相忌、菜名），不查重复，
-    也不查晚餐生姜——生姜在排菜时挡掉。合格返回空列表。"""
+    """菜池自查：只查菜池本身（结构、料、忌、相忌、菜名、做法和法对得上），
+    不查重复，也不查晚餐生姜——生姜在排菜时挡掉。合格返回空列表。"""
     if not isinstance(pool, dict):
         return ["不是 JSON 对象"]
     problems = []
@@ -428,67 +475,124 @@ def _ordered(items, season, bencao):
     return ordered
 
 
-def _special_picks(items, days, label):
-    """汤、饮：轮流排。返回 (清单 或 None, 排不满的原因)。"""
-    if len(items) < 2:
-        return None, "能用的{}只有 {} 个，至少要 2 个才排得出相邻两天不重".format(
-            label, len(items)
-        )
-    if len(items) * MAX_TIMES < days:
-        return None, "{}不够轮换（{} 个，每样最多两次，排不了 {} 天）".format(
-            label, len(items), days
-        )
-    return [items[day % len(items)] for day in range(days)], None
+def _is_savory_soup(item, bencao):
+    """咸汤：有肉、骨、鱼、蛋、豆腐、菜这类主料；糖水、茶不算。"""
+    for one in _expand(item, bencao)[0]:
+        entry = bencao.get(one)
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("kind") == "食材" and one not in NON_SAVORY_IDS:
+            return True
+    return False
 
 
-def _vegetable_picks(items, days, bencao, meal_order):
-    """菜：午餐、晚餐各一道，共用“每样最多两次”的额度，同一天不重样。
+def _is_rice(item, bencao):
+    """米饭：名字里有“饭”，或者主食且用大米。"""
+    name = item.get("name")
+    if isinstance(name, str) and "饭" in name:
+        return True
+    return item.get("kind") == "主食" and "dami" in _expand(item, bencao)[0]
 
-    先排 meal_order 里的第一餐，再排第二餐。返回 ({(第几天, 餐): 菜} 或 None, 原因)。
+
+def _synthetic_rice(bencao, lunch):
+    """菜池里没有米饭时，代码补一个；拿它当晚餐主食。"""
+    if lunch is not None and lunch.get("name") == "米饭":
+        if "xiaomi" in bencao and lunch.get("name") != "小米粥":
+            return {
+                "name": "小米粥",
+                "kind": "粥",
+                "ingredients": ["xiaomi"],
+                "method": "煮",
+                "steps": "小米淘洗，加水煮成软烂的粥。",
+                "why": "日常主食，平和养胃。",
+                "meals": ["晚"],
+            }
+        return None
+    if "dami" not in bencao:
+        return None
+    return {
+        "name": "米饭",
+        "kind": "主食",
+        "ingredients": ["dami"],
+        "method": "煮",
+        "steps": "大米淘洗，加水煮成米饭。",
+        "why": "日常主食，平和养胃。",
+        "meals": ["晚"],
+    }
+
+
+class _Week:
+    """排菜时的账本：这道菜用过几次、这味料出现在哪几天。"""
+
+    def __init__(self, bencao):
+        self.bencao = bencao
+        self.ingredient_days = {}
+        self.dish_counts = {}
+        self.day_dishes = {}
+
+    def ids(self, item):
+        return [one for one in _expand(item, self.bencao)[0] if isinstance(one, str)]
+
+    def exempt(self, item_id):
+        """米面、调料不算“同一味料最多几天”。"""
+        entry = self.bencao.get(item_id) or {}
+        return entry.get("kind") == "调料" or item_id in GRAIN_IDS
+
+    def pressure(self, item):
+        """这道菜让几味料多占一天，越小越先排。"""
+        total = 0
+        for one in self.ids(item):
+            if self.exempt(one):
+                continue
+            total += len(self.ingredient_days.get(one, ()))
+        return total
+
+    def dish_count(self, item):
+        return self.dish_counts.get(item.get("name"), 0)
+
+    def ingredient_ok(self, item, day):
+        for one in self.ids(item):
+            if self.exempt(one):
+                continue
+            if len(self.ingredient_days.get(one, set()) | {day}) > MAX_INGREDIENT_DAYS:
+                return False
+        return True
+
+    def claim(self, item, day):
+        name = item.get("name")
+        self.dish_counts[name] = self.dish_counts.get(name, 0) + 1
+        self.day_dishes.setdefault(day, set()).add(name)
+        for one in self.ids(item):
+            if not self.exempt(one):
+                self.ingredient_days.setdefault(one, set()).add(day)
+
+
+def _pick_item(week, items, cursor, day, allowed):
+    """从 items 里挑一道：先看允许不允许，再看给几味料加了负担（小的先），同分按次序。
+
+    返回 (挑中的菜 或 None, 新的 cursor)。
     """
-    budget = {}
-    by_day = {}
-    cursor = 0
-    schedule = {}
-    for day in range(days):
-        for meal in meal_order:
-            chosen = None
-            for step in range(len(items)):
-                item = items[(cursor + step) % len(items)]
-                name = item.get("name")
-                if budget.get(name, 0) >= MAX_TIMES:
-                    continue
-                if name in by_day.setdefault(day, set()):
-                    continue
-                if meal not in _meals_of(item):
-                    continue
-                if meal == "晚" and GINGER in _expand(item, bencao)[0]:
-                    continue
-                chosen = item
-                cursor = (cursor + step + 1) % len(items)
-                break
-            if chosen is None:
-                return None, "菜不够排满（第 {} 天{}没有可用的菜）".format(day + 1, meal)
-            budget[chosen["name"]] = budget.get(chosen["name"], 0) + 1
-            by_day.setdefault(day, set()).add(chosen["name"])
-            schedule[(day, meal)] = chosen
-    return schedule, None
+    if not items:
+        return None, cursor
+    candidates = []
+    for step in range(len(items)):
+        index = (cursor + step) % len(items)
+        item = items[index]
+        if allowed(item):
+            candidates.append((week.pressure(item), step, index, item))
+    if not candidates:
+        return None, cursor
+    _pressure, _step, index, item = min(
+        candidates, key=lambda one: (one[0], one[1])
+    )
+    return item, (index + 1) % len(items)
 
 
-def _pick_vegetables(items, days, bencao):
-    """试着排菜：先午后晚，排不满再先晚后午；都不行就把原因交回去。"""
-    reason = None
-    for meal_order in (("午", "晚"), ("晚", "午")):
-        schedule, reason = _vegetable_picks(items, days, bencao, meal_order)
-        if schedule is not None:
-            return schedule, None
-    return None, reason
-
-
-def _arrange(pool, canshu, bencao):
-    """菜池 -> 排好的一周。返回 (days 或 None, 排不满的原因)。"""
+def _assign(pool, canshu, bencao, meal_order, category_order):
+    """按一种排法排一周。排满了返回 (days, None)，排不满返回 (None, 原因)。"""
     days = canshu["range"]["days"]
     season = (canshu.get("tianshi") or {}).get("season")
+    week = _Week(bencao)
     dishes = [item for item in pool.get("dishes") or [] if isinstance(item, dict)]
 
     soups = _ordered(
@@ -500,63 +604,192 @@ def _arrange(pool, canshu, bencao):
     staples = _ordered(
         [item for item in dishes if item.get("kind") in STAPLES], season, bencao
     )
-
-    dinner_soups = [
-        item
-        for item in soups
-        if "晚" in _meals_of(item) and GINGER not in _expand(item, bencao)[0]
-    ]
-    soup_picks, reason = _special_picks(dinner_soups, days, "能上晚餐的汤")
-    if soup_picks is None:
-        return None, reason
-
-    vegetable_picks, reason = _pick_vegetables(vegetables, days, bencao)
-    if vegetable_picks is None:
-        return None, reason
-
-    lunch_staples = [item for item in staples if "午" in _meals_of(item)]
-    dinner_staples = [item for item in staples if "晚" in _meals_of(item)]
-    if not lunch_staples or not dinner_staples:
-        return None, "主食要能上午餐和晚餐各至少一个"
-
-    drink_picks = None
-    if canshu["range"]["drinks"]:
-        drinks = _ordered(
+    drinks = (
+        _ordered(
             [item for item in pool.get("drinks") or [] if isinstance(item, dict)],
             season,
             bencao,
         )
-        drink_picks, reason = _special_picks(drinks, days, "饮")
-        if drink_picks is None:
+        if canshu["range"]["drinks"]
+        else []
+    )
+
+    picked = {
+        "soup": {},
+        "vegetable": {},
+        "lunch_staple": {},
+        "dinner_staple": {},
+        "drink": {},
+    }
+    cursors = {"soup": 0, "vegetable": 0, "lunch": 0, "dinner": 0, "drink": 0}
+
+    def pick_soup():
+        dinner_soups = [
+            item
+            for item in soups
+            if "晚" in _meals_of(item)
+            and GINGER not in _expand(item, bencao)[0]
+            and _is_savory_soup(item, bencao)
+        ]
+        for day in range(1, days + 1):
+            def allowed(item, day=day):
+                if week.dish_count(item) >= MAX_TIMES:
+                    return False
+                if day > 1 and item.get("name") == picked["soup"][day - 1].get("name"):
+                    return False
+                return week.ingredient_ok(item, day)
+
+            item, cursors["soup"] = _pick_item(
+                week, dinner_soups, cursors["soup"], day, allowed
+            )
+            if item is None:
+                return (
+                    "第 {} 天晚饭的汤排不出来：汤要是咸汤（有肉、骨、鱼或菜），"
+                    "晚餐不放生姜，一周同一道汤最多两次，同一味料最多三天"
+                ).format(day)
+            week.claim(item, day)
+            picked["soup"][day] = item
+        return None
+
+    def pick_vegetable():
+        for day in range(1, days + 1):
+            for meal in meal_order:
+                def allowed(item, day=day, meal=meal):
+                    if week.dish_count(item) >= MAX_TIMES:
+                        return False
+                    if item.get("name") in week.day_dishes.get(day, set()):
+                        return False
+                    if meal not in _meals_of(item):
+                        return False
+                    if meal == "晚" and GINGER in _expand(item, bencao)[0]:
+                        return False
+                    return week.ingredient_ok(item, day)
+
+                item, cursors["vegetable"] = _pick_item(
+                    week, vegetables, cursors["vegetable"], day, allowed
+                )
+                if item is None:
+                    return (
+                        "第 {} 天{}的菜排不出来"
+                        "（一周同一道菜最多两次，同一味料最多三天）"
+                    ).format(day, meal)
+                week.claim(item, day)
+                picked["vegetable"][(day, meal)] = item
+        return None
+
+    def pick_staple():
+        lunch_list = [item for item in staples if "午" in _meals_of(item)]
+        dinner_list = [item for item in staples if "晚" in _meals_of(item)]
+        rice_list = [item for item in dinner_list if _is_rice(item, bencao)]
+        for day in range(1, days + 1):
+            def lunch_allowed(item, day=day):
+                return week.ingredient_ok(item, day)
+
+            lunch, cursors["lunch"] = _pick_item(
+                week, lunch_list, cursors["lunch"], day, lunch_allowed
+            )
+            if lunch is None:
+                return "第 {} 天的午餐主食排不出来".format(day)
+            week.claim(lunch, day)
+            picked["lunch_staple"][day] = lunch
+
+            def dinner_allowed(item, day=day, lunch=lunch):
+                if item.get("name") == lunch.get("name"):
+                    return False
+                return week.ingredient_ok(item, day)
+
+            dinner, cursors["dinner"] = _pick_item(
+                week, rice_list, cursors["dinner"], day, dinner_allowed
+            )
+            if dinner is None and rice_list:
+                dinner, cursors["dinner"] = _pick_item(
+                    week, dinner_list, cursors["dinner"], day, dinner_allowed
+                )
+            if dinner is None:
+                dinner = _synthetic_rice(bencao, lunch)
+                if dinner is None:
+                    return (
+                        "第 {} 天的晚餐主食排不出来（要米饭，又不能和午餐一样）"
+                    ).format(day)
+            week.claim(dinner, day)
+            picked["dinner_staple"][day] = dinner
+        return None
+
+    def pick_drink():
+        for day in range(1, days + 1):
+            def allowed(item, day=day):
+                if week.dish_count(item) >= MAX_TIMES:
+                    return False
+                return week.ingredient_ok(item, day)
+
+            item, cursors["drink"] = _pick_item(
+                week, drinks, cursors["drink"], day, allowed
+            )
+            if item is None:
+                return (
+                    "第 {} 天的饮排不出来（一周同一壶饮最多两次，同一味料最多三天）"
+                ).format(day)
+            week.claim(item, day)
+            picked["drink"][day] = item
+        return None
+
+    pickers = {
+        "汤": pick_soup,
+        "菜": pick_vegetable,
+        "主食": pick_staple,
+        "饮": pick_drink,
+    }
+    for category in category_order:
+        reason = pickers[category]()
+        if reason:
             return None, reason
 
     headcount = _headcount(canshu.get("people") or [])
     built_days = []
-    for day in range(days):
+    for day in range(1, days + 1):
         lunch = [
-            _build_item(lunch_staples[day % len(lunch_staples)], bencao, headcount, True),
-            _build_item(vegetable_picks[(day, "午")], bencao, headcount, True),
+            _build_item(picked["lunch_staple"][day], bencao, headcount, True),
+            _build_item(picked["vegetable"][(day, "午")], bencao, headcount, True),
         ]
         dinner = [
-            _build_item(soup_picks[day], bencao, headcount, True),
-            _build_item(vegetable_picks[(day, "晚")], bencao, headcount, True),
-            _build_item(
-                dinner_staples[day % len(dinner_staples)], bencao, headcount, True
-            ),
+            _build_item(picked["soup"][day], bencao, headcount, True),
+            _build_item(picked["vegetable"][(day, "晚")], bencao, headcount, True),
+            _build_item(picked["dinner_staple"][day], bencao, headcount, True),
         ]
         built = {
-            "day": day + 1,
+            "day": day,
             "meals": [
                 {"meal": "午", "dishes": lunch},
                 {"meal": "晚", "dishes": dinner},
             ],
         }
-        if drink_picks is not None:
+        if drinks:
             built["drinks"] = [
-                _build_item(drink_picks[day], bencao, headcount, False)
+                _build_item(picked["drink"][day], bencao, headcount, False)
             ]
         built_days.append(built)
     return built_days, None
+
+
+def _arrange(pool, canshu, bencao):
+    """菜池 -> 排好的一周。返回 (days 或 None, 排不满的原因)。
+
+    先午后晚、汤菜主食饮的顺序；排不满就换几种顺序再试（同一个菜池，结果还是一样）。
+    """
+    attempts = (
+        (("午", "晚"), ("汤", "菜", "主食", "饮")),
+        (("午", "晚"), ("饮", "汤", "菜", "主食")),
+        (("晚", "午"), ("汤", "菜", "主食", "饮")),
+        (("午", "晚"), ("菜", "汤", "主食", "饮")),
+    )
+    first_reason = None
+    for meal_order, category_order in attempts:
+        days, reason = _assign(pool, canshu, bencao, meal_order, category_order)
+        if days is not None:
+            return days, None
+        if first_reason is None:
+            first_reason = reason
+    return None, first_reason or "菜池排不满"
 
 
 def _qty(entry, headcount):
@@ -624,6 +857,7 @@ def _ask_one(canshu, bencao, llm, index):
         if days is None:
             feedback = (
                 "上一回的菜池排不满：{}。请补足能用的汤、菜、主食和饮，"
+                "并换着用不同的料（同一味料一周最多出现在三天里），"
                 "仍然只输出一个菜池 JSON。".format(reason)
             )
             continue

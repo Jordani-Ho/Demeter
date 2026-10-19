@@ -1,6 +1,7 @@
 {
   "id": "hetaoren",
   "name": "核桃仁",
+  "aliases": ["核桃"],
   "kind": "食材",
   "nature": "温",
   "flavor": ["甘"],

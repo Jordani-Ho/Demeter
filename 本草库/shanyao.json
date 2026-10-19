@@ -1,6 +1,7 @@
 {
   "id": "shanyao",
   "name": "山药",
+  "aliases": ["淮山"],
   "kind": "药食同源",
   "nature": "平",
   "flavor": ["甘"],

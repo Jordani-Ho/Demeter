@@ -1,6 +1,7 @@
 {
   "id": "shengjiang",
   "name": "生姜",
+  "aliases": ["姜"],
   "kind": "药食同源",
   "nature": "微温",
   "flavor": ["辛"],

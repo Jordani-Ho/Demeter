@@ -161,8 +161,23 @@ def _tie_break(plans, data, llm):
             plan_id = plan.get("plan_id")
             if isinstance(plan_id, str) and text.startswith(plan_id):
                 reason = text[len(plan_id):].lstrip("｜|:： ").strip()
-                return plan, reason or "按近况和口味挑的。"
-    return plans[0], "平手，先定第一套。"
+                if reason:
+                    return plan, reason
+    return plans[0], ""
+
+
+# 理由里不能出现机器的话；出现了就用方案的 idea
+MACHINE_REASON_WORDS = ("平手", "第一套", "先定")
+
+
+def _human_reason(reason, plan):
+    """给主人的那句理由：说这一套为什么适合这家人，不说机器的话。"""
+    idea = plan.get("idea") if isinstance(plan, dict) else None
+    idea = idea.strip() if isinstance(idea, str) else ""
+    text = reason.strip() if isinstance(reason, str) else ""
+    if not text or any(word in text for word in MACHINE_REASON_WORDS):
+        return idea or "按这一家的体质和口味挑的。"
+    return text
 
 
 def dingduo(plans, data, today, llm=None):
@@ -187,7 +202,7 @@ def dingduo(plans, data, today, llm=None):
         scored.append((score, index, plan))
     scored.sort(key=lambda item: (-item[0], item[1]))
 
-    reason = "平手，先定第一套。"
+    reason = ""
     if len(scored) > 1 and scored[0][0] == scored[1][0]:
         chosen, reason = _tie_break(remaining, data, llm)
     else:
@@ -197,6 +212,7 @@ def dingduo(plans, data, today, llm=None):
                 scored[0][0]
             )
 
+    reason = _human_reason(reason, chosen)
     decision = {
         "decision_id": secrets.token_hex(8),
         "request_id": chosen.get("request_id"),

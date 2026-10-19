@@ -103,6 +103,7 @@ def pool_obj():
         dish("山药鲫鱼汤", "汤", ["shanyao", "jiyu"], "煲", ["晚"]),
         dish("百合莲子汤", "汤", ["baihe", "lianzi"], "煲", ["晚"]),
         dish("冬瓜豆腐汤", "汤", ["donggua", "doufu"], "煮", ["晚"]),
+        dish("西洋菜猪骨汤", "汤", ["xiyangcai", "zhugu"], "煲", ["晚"]),
         dish("清炒菜心", "菜", ["caixin"], "炒", ["午", "晚"]),
         dish("蒸南瓜", "菜", ["nangua"], "蒸", ["午", "晚"]),
         dish("凉拌木耳", "菜", ["muer"], "生食", ["午"]),
@@ -152,12 +153,69 @@ def dish_names_of(plan):
     return counts
 
 
+GRAIN_IDS = ("dami", "xiaomi", "yanmai", "yumi")
+NON_SAVORY_IDS = (
+    "xueli",
+    "pingguo",
+    "shizi",
+    "hetaoren",
+    "yiner",
+    "heidou",
+    "huangdou",
+    "lvdou",
+) + GRAIN_IDS
+
+
+def load_bencao():
+    """本草库：id -> 条目。"""
+    entries = {}
+    folder = os.path.join(ROOT, "本草库")
+    for name in sorted(os.listdir(folder)):
+        if not name.endswith(".json") or name == "词表.json":
+            continue
+        with open(os.path.join(folder, name), encoding="utf-8-sig") as handle:
+            entry = json.load(handle)
+        entries[entry["id"]] = entry
+    return entries
+
+
+def ingredient_days(plan, bencao):
+    """每味料出现在哪几天（米面、调料不算）。"""
+    days = {}
+    for day in plan["days"]:
+        ingredients = []
+        for meal in day["meals"]:
+            for one in meal["dishes"]:
+                ingredients.extend(one["ingredients"])
+        for one in day.get("drinks") or []:
+            ingredients.extend(one["ingredients"])
+        for ingredient in ingredients:
+            item_id = ingredient["item"]
+            entry = bencao.get(item_id) or {}
+            if entry.get("kind") == "调料" or item_id in GRAIN_IDS:
+                continue
+            days.setdefault(item_id, set()).add(day["day"])
+    return days
+
+
+def savory_built(dish, bencao):
+    """排好的这道汤是不是咸汤（有肉、骨、鱼、蛋、豆腐、菜）。"""
+    for ingredient in dish["ingredients"]:
+        item_id = ingredient["item"]
+        entry = bencao.get(item_id) or {}
+        if entry.get("kind") == "食材" and item_id not in NON_SAVORY_IDS:
+            return True
+    return False
+
+
 class TestChushenJia(unittest.TestCase):
     def setUp(self):
         self.chef = 插口.load(CHEF_DIR)
+        self.bencao = load_bencao()
 
     def test_week_rules(self):
-        """三个方案都合格；七天守住第六节的每餐道数、最多两次、相邻汤不同。"""
+        """三个方案都合格；七天守住第六节的每餐道数、最多两次、相邻汤不同、汤是咸汤、
+        晚餐主食优先米饭且不和午餐一样、同一味料最多三天。"""
         fake = FakeLLM(pool_text())
 
         passed, dropped = 插口.ask(self.chef, CANSHU, fake)
@@ -193,14 +251,174 @@ class TestChushenJia(unittest.TestCase):
                     sum(1 for one in dinner if one["kind"] in STAPLE_KINDS), 1
                 )
                 self.assertEqual(len(day["drinks"]), 1)
-                soups.append(
-                    next(one["name"] for one in dinner if one["kind"] == "汤")
+                soup = next(one for one in dinner if one["kind"] == "汤")
+                self.assertTrue(savory_built(soup, self.bencao), soup["name"])
+                soups.append(soup["name"])
+                lunch_staple = next(
+                    one for one in lunch if one["kind"] in STAPLE_KINDS
                 )
+                dinner_staple = next(
+                    one for one in dinner if one["kind"] in STAPLE_KINDS
+                )
+                self.assertNotEqual(lunch_staple["name"], dinner_staple["name"])
+                if lunch_staple["name"] != "米饭":
+                    self.assertIn("饭", dinner_staple["name"])
             for first, second in zip(soups, soups[1:]):
                 self.assertNotEqual(first, second, "相邻两天的汤不能一样")
             counts = dish_names_of(plan)
             for name, count in counts.items():
                 self.assertLessEqual(count, 2, "“{}”出现了 {} 次".format(name, count))
+            for item_id, when in ingredient_days(plan, self.bencao).items():
+                self.assertLessEqual(
+                    len(when),
+                    3,
+                    "{} 出现在 {} 天".format(item_id, sorted(when)),
+                )
+
+    def test_soup_position_only_takes_savory_soups(self):
+        """汤的位置只放咸汤：一池糖水、茶当汤的，排不满、不交。"""
+        module = load_main_module()
+        bencao = module._load_bencao()
+        pool = pool_obj()
+        pool["dishes"] = [one for one in pool["dishes"] if one["kind"] != "汤"]
+        pool["dishes"] += [
+            dish("雪梨银耳汤", "汤", ["xueli", "yiner"], "炖", ["晚"]),
+            dish("苹果甜汤", "汤", ["pingguo", "bingtang"], "煮", ["晚"]),
+            dish("罗汉果汤", "汤", ["luohanguo"], "煮", ["晚"]),
+            dish("百合甜汤", "汤", ["baihe", "bingtang"], "煮", ["晚"]),
+            dish("银耳糖水", "汤", ["yiner", "bingtang"], "炖", ["晚"]),
+        ]
+
+        days, reason = module._arrange(pool, CANSHU, bencao)
+
+        self.assertIsNone(days)
+        self.assertIn("汤", reason)
+
+    def test_dinner_staple_prefers_rice(self):
+        """晚餐主食优先米饭，不和当天午餐一样。"""
+        passed, dropped = 插口.ask(self.chef, CANSHU, FakeLLM(pool_text()))
+
+        self.assertEqual(dropped, [])
+        rice_dinner = 0
+        for plan in passed:
+            for day in plan["days"]:
+                meals = {meal["meal"]: meal["dishes"] for meal in day["meals"]}
+                lunch = next(
+                    one for one in meals["午"] if one["kind"] in STAPLE_KINDS
+                )
+                dinner = next(
+                    one for one in meals["晚"] if one["kind"] in STAPLE_KINDS
+                )
+                self.assertNotEqual(lunch["name"], dinner["name"])
+                if "饭" in dinner["name"]:
+                    rice_dinner += 1
+        self.assertGreater(rice_dinner, 0)
+
+    def test_synthetic_rice_when_pool_has_none(self):
+        """菜池里没有米饭：代码自己补一个米饭当晚餐主食。"""
+        pool = pool_obj()
+        pool["dishes"] = [
+            one for one in pool["dishes"] if one["kind"] not in STAPLE_KINDS
+        ]
+        pool["dishes"] += [
+            dish("小米粥", "粥", ["xiaomi"], "煮", ["午", "晚"]),
+            dish("燕麦粥", "粥", ["yanmai"], "煮", ["午", "晚"]),
+        ]
+
+        passed, dropped = 插口.ask(
+            self.chef, CANSHU, FakeLLM(json.dumps(pool, ensure_ascii=False))
+        )
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(len(passed), 3)
+        for plan in passed:
+            for day in plan["days"]:
+                meals = {meal["meal"]: meal["dishes"] for meal in day["meals"]}
+                dinner = next(
+                    one for one in meals["晚"] if one["kind"] in STAPLE_KINDS
+                )
+                self.assertEqual(dinner["name"], "米饭")
+                self.assertEqual(dinner["ingredients"][0]["item"], "dami")
+
+    def test_ingredient_not_in_too_many_days(self):
+        """同一味料一周最多出现在 3 天里：雪梨堆得很满的菜池也不会超。"""
+        pool = pool_obj()
+        pool["dishes"].append(
+            dish("雪梨蒸百合", "菜", ["xueli", "baihe"], "蒸", ["午", "晚"])
+        )
+        pool["dishes"].append(
+            dish("雪梨炒木耳", "菜", ["xueli", "muer"], "炒", ["午", "晚"])
+        )
+        pool["drinks"] = [
+            drink("雪梨饮", ["xueli"]),
+            drink("雪梨蜂蜜饮", ["xueli", "fengmi"]),
+            drink("苹果饮", ["pingguo"]),
+            drink("罗汉果饮", ["luohanguo"]),
+            drink("百合饮", ["baihe"]),
+        ]
+
+        passed, dropped = 插口.ask(
+            self.chef, CANSHU, FakeLLM(json.dumps(pool, ensure_ascii=False))
+        )
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(len(passed), 3)
+        for plan in passed:
+            days = ingredient_days(plan, self.bencao)
+            self.assertLessEqual(len(days.get("xueli", set())), 3)
+
+    def test_alias_in_dish_name(self):
+        """菜名里写别名也算提到这味料：薏米就是薏苡仁。"""
+        module = load_main_module()
+        bencao = module._load_bencao()
+        pool = pool_obj()
+        pool["dishes"].append(
+            dish("冬瓜薏米猪骨汤", "汤", ["donggua", "zhugu"], "煲", ["晚"])
+        )
+
+        problems = module._pool_problems(pool, CANSHU, bencao)
+
+        self.assertTrue(
+            any("薏米" in problem and "料里却没有" in problem for problem in problems),
+            problems,
+        )
+
+        pool["dishes"][-1]["ingredients"] = ["donggua", "zhugu", "yiyiren"]
+        problems = module._pool_problems(pool, CANSHU, bencao)
+        self.assertFalse(
+            any("薏米" in problem and "料里却没有" in problem for problem in problems),
+            problems,
+        )
+
+    def test_method_must_match_steps(self):
+        """做法里写了煎、炸、焗，method 却不是这个法的：打回。"""
+        module = load_main_module()
+        bencao = module._load_bencao()
+        pool = pool_obj()
+        pool["dishes"].append(
+            {
+                "name": "鲫鱼豆腐汤",
+                "kind": "汤",
+                "ingredients": ["jiyu", "doufu"],
+                "method": "煲",
+                "steps": "鲫鱼煎至微黄，加豆腐与热水煲至汤白。",
+                "why": "鲜甜。",
+                "meals": ["晚"],
+            }
+        )
+
+        problems = module._pool_problems(pool, CANSHU, bencao)
+        self.assertTrue(
+            any("煎" in problem and "method" in problem for problem in problems),
+            problems,
+        )
+
+        pool["dishes"][-1]["method"] = "煎"
+        problems = module._pool_problems(pool, CANSHU, bencao)
+        self.assertFalse(
+            any("method" in problem and "煎" in problem for problem in problems),
+            problems,
+        )
 
     def test_same_pool_same_week(self):
         """同样的菜池排两次，结果一模一样（排法不用随机）。"""

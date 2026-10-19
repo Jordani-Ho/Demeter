@@ -1,6 +1,7 @@
 {
   "id": "chenpi",
   "name": "陈皮",
+  "aliases": ["橘皮"],
   "kind": "药食同源",
   "nature": "温",
   "flavor": ["辛", "苦"],

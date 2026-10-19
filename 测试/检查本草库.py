@@ -242,6 +242,48 @@ def check_entry(filename, data, known_ids, words, entries_by_id):
                     ),
                 )
 
+    # 6.5 aliases：字符串数组；别名不和别的条目的名字或别名重复
+    aliases = data.get("aliases")
+    if aliases is not None:
+        if not isinstance(aliases, list):
+            bad("aliases", "应为字符串数组，实际是{}".format(type_name(aliases)))
+        else:
+            strings = []
+            for index, alias in enumerate(aliases):
+                if not isinstance(alias, str):
+                    bad(
+                        "aliases",
+                        "第 {} 项应为字符串，实际是{}".format(
+                            index + 1, type_name(alias)
+                        ),
+                    )
+                elif alias.strip() == "":
+                    bad("aliases", "第 {} 项不能是空字符串".format(index + 1))
+                else:
+                    strings.append(alias)
+            seen = set()
+            for alias in strings:
+                if alias in seen:
+                    bad("aliases", "“{}”写了两次".format(alias))
+                seen.add(alias)
+            for alias in strings:
+                own_id = data.get("id")
+                for other_id, other in entries_by_id.items():
+                    if other_id == own_id:
+                        continue
+                    other_words = set()
+                    other_name = other.get("name")
+                    if isinstance(other_name, str) and other_name:
+                        other_words.add(other_name)
+                    for other_alias in other.get("aliases") or []:
+                        if isinstance(other_alias, str):
+                            other_words.add(other_alias)
+                    if alias in other_words:
+                        bad(
+                            "aliases",
+                            "“{}”和条目“{}”的名字或别名重复".format(alias, other_id),
+                        )
+
     # 方：多一个 ingredients，里面的 item 都要能在本草库里找到
     if kind == "方":
         ingredients = data.get("ingredients")

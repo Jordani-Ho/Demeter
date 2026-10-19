@@ -1,6 +1,7 @@
 {
   "id": "xiyangcai",
   "name": "西洋菜",
+  "aliases": ["豆瓣菜"],
   "kind": "食材",
   "nature": "凉",
   "flavor": ["甘"],

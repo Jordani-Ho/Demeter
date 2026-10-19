@@ -1,6 +1,7 @@
 {
   "id": "sangshen",
   "name": "桑葚",
+  "aliases": ["桑椹"],
   "kind": "药食同源",
   "nature": "寒",
   "flavor": ["甘", "酸"],
