@@ -242,6 +242,29 @@ class TestChakou(unittest.TestCase):
         self.assertEqual(len(dropped), 1)
         self.assertIn("两三个", dropped[0][1])
 
+    def test_avoid_hits_are_dropped(self):
+        """参数单里的忌口碰到料（id、中文名、味），插口也挡。"""
+        for avoid_term in ("shengjiang", "生姜", "辛"):
+            with self.subTest(avoid=avoid_term):
+                canshu = copy.deepcopy(CANSHU)
+                canshu["people"][0]["avoid"] = [avoid_term]
+
+                passed, dropped = 插口.ask(load_fake("忌口碰到的"), canshu, None)
+
+                self.assertEqual(passed, [])
+                self.assertEqual(len(dropped), 3)
+                self.assertTrue(
+                    all("忌口" in reason for _, reason in dropped),
+                    "理由：{}".format(dropped),
+                )
+
+    def test_avoid_not_hit_passes(self):
+        """忌口没碰到的，照常放行。"""
+        passed, dropped = 插口.ask(load_fake("忌口碰到的"), CANSHU, None)
+
+        self.assertEqual(dropped, [])
+        self.assertEqual(len(passed), 3)
+
     def test_skill_json_fields_are_checked(self):
         """说明书不合格的四种情况都报错，说清哪里不对。"""
         cases = {
