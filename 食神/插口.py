@@ -28,6 +28,7 @@ BANNED_PATH = os.path.join(ROOT, "食神", "禁词.json")
 SKILL_FIELDS = ("name", "kind", "author", "entry", "reads", "writes", "knowledge")
 BASIC_KINDS = ("食材", "药食同源", "调料", "茶饮")
 METHODS = ("煎", "炒", "焖", "炸", "焗", "蒸", "煮", "煲", "炖", "泡", "生食")
+DISH_KINDS = ("汤", "菜", "主食", "粥", "点心")
 TIMEOUT = 60
 
 
@@ -148,32 +149,51 @@ def _is_number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _find_banned(node, banned):
-    """在方案的所有文字里找禁词，找到就返回那个词。"""
-    if isinstance(node, dict):
-        for value in node.values():
-            found = _find_banned(value, banned)
-            if found:
-                return found
-    elif isinstance(node, list):
-        for item in node:
-            found = _find_banned(item, banned)
-            if found:
-                return found
-    elif isinstance(node, str):
+def _visible_texts(item):
+    """给人看的文字：name、steps、why、when。"""
+    for field in ("name", "steps", "why", "when"):
+        value = item.get(field)
+        if isinstance(value, str):
+            yield value
+
+
+def _find_banned(plan, banned):
+    """只在给人看的文字里按字面包含查禁词：idea、name、steps、why、when。"""
+    texts = []
+    if isinstance(plan.get("idea"), str):
+        texts.append(plan["idea"])
+    for day in plan.get("days") or []:
+        if not isinstance(day, dict):
+            continue
+        for meal in day.get("meals") or []:
+            if not isinstance(meal, dict):
+                continue
+            for dish in meal.get("dishes") or []:
+                if isinstance(dish, dict):
+                    texts.extend(_visible_texts(dish))
+        for drink in day.get("drinks") or []:
+            if isinstance(drink, dict):
+                texts.extend(_visible_texts(drink))
+    for text in texts:
         for word in banned:
-            if word in node:
+            if word in text:
                 return word
     return None
 
 
-def _check_item(item, label, bencao):
-    """一道菜或一壶茶：名字、料、量、法。"""
+def _check_item(item, label, bencao, is_dish):
+    """一道菜或一壶茶：名字、料、量、法；菜还有 kind，两样都有 sources。"""
     if not isinstance(item, dict):
         return "{}不是对象".format(label)
     name = item.get("name")
     if not isinstance(name, str) or not name.strip():
         return "{}缺 name".format(label)
+    if is_dish:
+        kind = item.get("kind")
+        if kind not in DISH_KINDS:
+            return "{}的 kind“{}”不在允许的范围里（{}）".format(
+                label, kind, "、".join(DISH_KINDS)
+            )
     method = item.get("method")
     if method not in METHODS:
         return "{}的 method“{}”不在允许的做法里".format(label, method)
@@ -197,6 +217,12 @@ def _check_item(item, label, bencao):
         unit = ingredient.get("unit")
         if not isinstance(unit, str) or not unit.strip():
             return "{}的料“{}”没有单位".format(label, item_id)
+    sources = item.get("sources")
+    if not isinstance(sources, list):
+        return "{}没有 sources".format(label)
+    for source in sources:
+        if not isinstance(source, str) or source not in bencao:
+            return "{}的 sources 里“{}”不在本草库里".format(label, source)
     return None
 
 
@@ -237,7 +263,7 @@ def _check_plan(plan, canshu, bencao, banned):
             if not isinstance(dishes, list) or not dishes:
                 return prefix + "第 {} 天 {} 没有菜".format(index, meal.get("meal"))
             for dish in dishes:
-                reason = _check_item(dish, "菜", bencao)
+                reason = _check_item(dish, "菜", bencao, True)
                 if reason:
                     return prefix + "第 {} 天 {}".format(index, reason)
         if canshu["range"]["drinks"]:
@@ -245,7 +271,7 @@ def _check_plan(plan, canshu, bencao, banned):
             if not isinstance(drinks, list) or not drinks:
                 return prefix + "第 {} 天没有饮".format(index)
             for drink in drinks:
-                reason = _check_item(drink, "饮", bencao)
+                reason = _check_item(drink, "饮", bencao, False)
                 if reason:
                     return prefix + "第 {} 天 {}".format(index, reason)
 
@@ -292,6 +318,25 @@ def ask(chef, canshu: dict, llm, timeout: float = TIMEOUT):
         return [], [
             (result, "方案要是两三个，这次给了 {} 个".format(len(plans)))
         ]
+
+    if result.get("teacher") != chef.name:
+        return [], [
+            (
+                result,
+                "方案的 teacher“{}”和说明书的 name“{}”对不上".format(
+                    result.get("teacher"), chef.name
+                ),
+            )
+        ]
+
+    seen_plan_ids = set()
+    for plan in plans:
+        if isinstance(plan, dict) and isinstance(plan.get("plan_id"), str):
+            if plan["plan_id"] in seen_plan_ids:
+                return [], [
+                    (result, "一次回复里 plan_id 重复了：{}".format(plan["plan_id"]))
+                ]
+            seen_plan_ids.add(plan["plan_id"])
 
     bencao = _bencao()
     banned = _banned_words()
