@@ -1,0 +1,44 @@
+{
+  "owner": "主人",
+  "place": {
+    "name": "虚构的江南小城",
+    "lat": 30.25,
+    "lon": 120.17,
+    "tz": "Asia/Shanghai",
+    "region": "江南",
+    "climate": { "humid": "偏潮", "temp": "温和" },
+    "at": "2026-10-18T19:00:00+08:00"
+  },
+  "people": [
+    {
+      "id": "p1",
+      "name": "阿禾",
+      "birth_year": 1992,
+      "constitution": ["阴虚", "热"],
+      "taste": ["清淡"],
+      "avoid": [],
+      "notes": [
+        { "at": "2026-10-18T19:00:00+08:00", "text": "最近睡得不好" }
+      ],
+      "at": "2026-10-18T19:00:00+08:00"
+    },
+    {
+      "id": "p2",
+      "name": "阿禾的妈妈",
+      "birth_year": 1964,
+      "constitution": ["气虚"],
+      "taste": [],
+      "avoid": ["辛"],
+      "notes": [],
+      "at": "2026-10-18T19:00:00+08:00"
+    }
+  ],
+  "feelings": [
+    { "at": "2026-10-18T19:10:00+08:00", "kind": "like", "item": "一壶菊花茶" }
+  ],
+  "saved": [],
+  "pantry": [
+    { "item": "gouqizi", "qty": 200, "unit": "g", "at": "2026-10-18T19:00:00+08:00" }
+  ],
+  "history": []
+}
