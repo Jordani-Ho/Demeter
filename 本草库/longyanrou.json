@@ -1,6 +1,7 @@
 {
   "id": "longyanrou",
   "name": "龙眼肉",
+  "aliases": ["桂圆", "龙眼"],
   "kind": "药食同源",
   "nature": "温",
   "flavor": ["甘"],

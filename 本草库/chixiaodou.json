@@ -1,6 +1,7 @@
 {
   "id": "chixiaodou",
   "name": "赤小豆",
+  "aliases": ["红豆"],
   "kind": "药食同源",
   "nature": "平",
   "flavor": ["甘", "酸"],

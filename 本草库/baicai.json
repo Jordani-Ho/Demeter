@@ -1,6 +1,7 @@
 {
   "id": "baicai",
   "name": "大白菜",
+  "aliases": ["白菜"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

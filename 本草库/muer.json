@@ -1,6 +1,7 @@
 {
   "id": "muer",
   "name": "木耳",
+  "aliases": ["黑木耳"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

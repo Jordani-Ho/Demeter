@@ -1,6 +1,7 @@
 {
   "id": "yiner",
   "name": "银耳",
+  "aliases": ["雪耳", "白木耳"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘", "淡"],

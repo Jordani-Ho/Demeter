@@ -1,6 +1,7 @@
 {
   "id": "cong",
   "name": "葱",
+  "aliases": ["小葱", "大葱"],
   "kind": "调料",
   "nature": "微温",
   "flavor": ["辛"],

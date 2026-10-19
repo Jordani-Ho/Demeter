@@ -192,15 +192,46 @@ class TestDingduo(unittest.TestCase):
         self.assertIn("点过赞", reason)
 
     def test_tie_without_llm_takes_first(self):
-        """平手又没有大模型：取第一个。"""
+        """平手又没有大模型：取第一个，理由用方案的 idea，不说机器的话。"""
         data = library()
-        first = make_plan("A", [[("玉竹汤", ["yuzhu"])]])
+        first = make_plan("A", [[("玉竹汤", ["yuzhu"])]], idea="秋燥润一点。")
         second = make_plan("B", [[("雪梨汤", ["xueli"])]])
 
         decision, reason = dingduo([first, second], data, TODAY)
 
         self.assertEqual(decision["chosen_plan"], "A")
-        self.assertIn("平手", reason)
+        self.assertEqual(reason, "秋燥润一点。")
+        for word in ("平手", "第一套", "先定"):
+            self.assertNotIn(word, reason)
+
+    def test_tie_with_bad_llm_reply_uses_idea(self):
+        """大模型回的格式不对：取第一个，理由用方案的 idea。"""
+        data = library()
+        first = make_plan("A", [[("玉竹汤", ["yuzhu"])]], idea="清淡平补。")
+        second = make_plan("B", [[("雪梨汤", ["xueli"])]])
+
+        decision, reason = dingduo(
+            [first, second], data, TODAY, llm=lambda prompt: "我也不知道选哪个"
+        )
+
+        self.assertEqual(decision["chosen_plan"], "A")
+        self.assertEqual(reason, "清淡平补。")
+
+    def test_reason_never_machine_words(self):
+        """大模型给的“理由”里带机器的话：换成方案的 idea。"""
+        data = library()
+        plans = [
+            make_plan("A", [[("玉竹汤", ["yuzhu"])]], idea="润燥。"),
+            make_plan("B", [[("雪梨汤", ["xueli"])]], idea="清润。"),
+        ]
+
+        decision, reason = dingduo(
+            plans, data, TODAY, llm=lambda prompt: "A｜平手，先定第一套。"
+        )
+
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision["chosen_plan"], "A")
+        self.assertEqual(reason, "润燥。")
 
     def test_tie_with_llm(self):
         """平手有大模型：用它的选择和理由。"""

@@ -1,6 +1,7 @@
 {
   "id": "shengchou",
   "name": "生抽",
+  "aliases": ["酱油"],
   "kind": "调料",
   "nature": "平",
   "flavor": ["咸", "甘"],

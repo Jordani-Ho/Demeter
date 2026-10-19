@@ -1,6 +1,7 @@
 {
   "id": "yanmai",
   "name": "燕麦",
+  "aliases": ["麦片"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

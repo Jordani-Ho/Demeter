@@ -1,6 +1,7 @@
 {
   "id": "zhugu",
   "name": "猪骨",
+  "aliases": ["排骨"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

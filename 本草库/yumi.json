@@ -1,6 +1,7 @@
 {
   "id": "yumi",
   "name": "玉米",
+  "aliases": ["苞米"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],

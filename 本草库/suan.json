@@ -1,6 +1,7 @@
 {
   "id": "suan",
   "name": "蒜",
+  "aliases": ["大蒜", "蒜头"],
   "kind": "调料",
   "nature": "温",
   "flavor": ["辛"],

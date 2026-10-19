@@ -1,6 +1,7 @@
 {
   "id": "zhushourou",
   "name": "猪瘦肉",
+  "aliases": ["瘦肉"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘", "咸"],

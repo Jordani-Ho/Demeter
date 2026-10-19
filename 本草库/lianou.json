@@ -1,6 +1,7 @@
 {
   "id": "lianou",
   "name": "莲藕",
+  "aliases": ["藕"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘", "涩"],

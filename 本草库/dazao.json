@@ -1,6 +1,7 @@
 {
   "id": "dazao",
   "name": "大枣",
+  "aliases": ["红枣"],
   "kind": "药食同源",
   "nature": "温",
   "flavor": ["甘"],

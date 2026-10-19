@@ -1,6 +1,7 @@
 {
   "id": "huluobo",
   "name": "胡萝卜",
+  "aliases": ["红萝卜"],
   "kind": "食材",
   "nature": "平",
   "flavor": ["甘"],
